@@ -16,21 +16,37 @@ double pi_sequential()
 		sum += 4.0 / (1.0 + pow(x, 2.0));
 	}
 
-	//cout << "Sequential sum = " << sum << '\n';
 	double pi = step * sum;
 	return pi;
+}
+
+double *getArray(int size)
+{
+	double *buffer;
+	buffer = (double*)malloc(size * sizeof(double));
+	for (int i = 0; i < size; i++)
+	{
+		buffer[i] = 0.0;
+	}
+
+	return buffer;
+}
+
+double sumArray(double* arr, const int size)
+{
+	double sum = 0.0;
+
+	for (int i = 0; i < size; i++)
+		sum += arr[i];
+
+	return sum;
 }
 
 double pi_parallel(const unsigned int noOfThreads)
 {
 	const double step = 1.0 / (double)num_steps;
 
-	double *buffer;
-	buffer = (double*)malloc(noOfThreads * sizeof(double));
-	for (int i = 0; i < noOfThreads; i++)
-	{
-		buffer[i] = 0.0;
-	}
+	double *buffer = getArray(noOfThreads);
 
 	#pragma omp parallel num_threads (noOfThreads)
 	{
@@ -48,9 +64,7 @@ double pi_parallel(const unsigned int noOfThreads)
 		//printf("Thread %d = %f\n", thread_num, increment);
 	}
 
-	double sum = 0.0;
-	for (int i = 0; i < noOfThreads; i++)
-		sum += buffer[i];
+	double sum = sumArray(buffer, noOfThreads);
 
 	//printf("Concurent sum = %f\n", sum);
 	double pi = step * sum;
@@ -64,13 +78,17 @@ double pi_parallel_WSC(const unsigned int noOfThreads)
 	double x, sum = 0.0;
 	double step = 1.0 / (double)num_steps;
 
+	double *buffer = getArray(noOfThreads);
+
 	#pragma omp parallel for num_threads(noOfThreads)
 	for (long i = 1; i <= num_steps; i++)
 	{
+		const int thread_num = omp_get_thread_num();
 		x = (i - 0.5) * step;
-		sum += 4.0 / (1.0 + pow(x, 2.0));
+		buffer[thread_num] += 4.0 / (1.0 + pow(x, 2.0));
 	}
 
+	sum = sumArray(buffer, noOfThreads);
 	double pi = step * sum;
 	return pi;
 }
@@ -92,12 +110,30 @@ double pi_parallel_shared(const unsigned int noOfThreads)
 	return pi;
 }
 
+double pi_parallel_reduction(const unsigned int noOfThreads)
+{
+	double x, sum = 0.0;
+	double step = 1.0 / (double)num_steps;
+
+#pragma omp parallel for num_threads(noOfThreads) private(x) reduction(+: sum)
+	for (long i = 1; i <= num_steps; i++)
+	{
+		x = (i - 0.5) * step;
+#pragma omp critical
+		sum += 4.0 / (1.0 + pow(x, 2.0));
+	}
+
+	double pi = step * sum;
+	return pi;
+}
+
 int main() 
 {
 	cout << "Sequential = " << pi_sequential() << '\n';
 	cout << "Parallel = " << pi_parallel(4) << '\n';
-	cout << "Parallel WSC = " << pi_parallel(4) << '\n';
+	cout << "Parallel WSC = " << pi_parallel_WSC(4) << '\n';
 	cout << "Parallel Shared = " << pi_parallel_shared(4) << '\n';
+	cout << "Parallel reduction = " << pi_parallel_reduction(4) << '\n';
 	
 	char x;
 	cin >> x;
