@@ -59,10 +59,27 @@ double pi_parallel(const unsigned int noOfThreads)
 	return pi;
 }
 
+double pi_parallel_WSC(const unsigned int noOfThreads)
+{
+	double x, sum = 0.0;
+	double step = 1.0 / (double)num_steps;
+
+	#pragma omp parallel for num_threads(noOfThreads)
+	for (long i = 1; i <= num_steps; i += noOfThreads)
+	{
+		x = (i - 0.5) * step;
+		sum += 4.0 / (1.0 + pow(x, 2.0));
+	}
+
+	double pi = step * sum;
+	return pi;
+}
+
 int main() 
 {
 	cout << "Sequential = " << pi_sequential() << '\n';
 	cout << "Parallel = " << pi_parallel(4) << '\n';
+	cout << "Parallel WSC = " << pi_parallel(4) << '\n';
 	
 	char x;
 	cin >> x;
